@@ -16,7 +16,13 @@ class Settings(BaseSettings):
     )
 
     # Database Configuration
-    DATABASE_URL: str = "sqlite:///./ai_chatbot.db"
+    # SQLite Configuration (Commented out):
+    # DATABASE_URL: str = "sqlite:///./ai_chatbot.db"
+    
+    # PostgreSQL Configuration:
+    # Primary database configuration for PostgreSQL. The psycopg2 driver is used to connect.
+    # Make sure to update the credentials (username, password, host, port, database) to match your PostgreSQL setup.
+    DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/ai_chatbot_db"
 
     # Ollama Configuration
     OLLAMA_BASE_URL: str = "http://localhost:11434"

@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Any
 from sqlalchemy.orm import Session
+from app.models.user import Setting
 from app.repositories.conversation_repository import ConversationRepository
 from app.config.settings import settings
 from app.utils.logger import log_event
@@ -23,6 +24,18 @@ class ConversationSummarizer:
         already summarized messages. If so, summarize older parts and save the summary.
         Returns True if a new summary was generated.
         """
+        # Fetch user settings to determine LLM routing (local vs cloud API)
+        conv = self.conv_repo.get_by_id(conversation_id)
+        llm_provider = "ollama"
+        api_key = None
+        api_base_url = None
+        if conv:
+            setting = self.db.query(Setting).filter(Setting.user_id == conv.user_id).first()
+            if setting:
+                llm_provider = setting.llm_provider
+                api_key = setting.api_key
+                api_base_url = setting.api_base_url
+
         all_messages = self.conv_repo.get_messages(conversation_id)
         total_count = len(all_messages)
 
@@ -63,7 +76,10 @@ class ConversationSummarizer:
                 model=model_used,
                 system_prompt="You are an expert conversation summarizer. Be accurate, concise, and preserve key context.",
                 temperature=0.3,
-                max_tokens=512
+                max_tokens=512,
+                llm_provider=llm_provider,
+                api_key=api_key,
+                api_base_url=api_base_url
             )
             if not summary_result or not summary_result.strip():
                 # Fallback simple text summary if Ollama offline

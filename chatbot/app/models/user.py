@@ -40,6 +40,9 @@ class Setting(Base):
     temperature = Column(Float, default=0.7, nullable=False)
     max_tokens = Column(Integer, default=1024, nullable=False)
     theme = Column(String(20), default="dark", nullable=False)
+    llm_provider = Column(String(50), default="ollama", nullable=False)
+    api_key = Column(String(255), nullable=True)
+    api_base_url = Column(String(255), nullable=True)
     updated_at = Column(DateTime, default=get_utc_now, onupdate=get_utc_now, nullable=False)
 
     # Relationships

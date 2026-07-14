@@ -31,6 +31,8 @@ def render_chat_view(db: Session, user_id: str):
 
     # Check Ollama Server Connection
     is_ollama_up = ollama_service.check_connection()
+    user_settings = user_repo.get_settings(user_id)
+    llm_provider = user_settings.llm_provider if user_settings else "ollama"
 
     # Top Control Header
     header_cols = st.columns([3, 2, 2])
@@ -43,13 +45,13 @@ def render_chat_view(db: Session, user_id: str):
             st.caption("No tags yet (auto-assigned after first chat exchange)")
 
     with header_cols[1]:
-        available_models = ollama_service.list_available_models()
+        available_models = ollama_service.list_available_models(llm_provider)
         current_model = st.session_state.get("preferred_model", conv.ollama_model_used)
         if current_model not in available_models:
             available_models.append(current_model)
         
         selected_model = st.selectbox(
-            "🤖 Ollama Model",
+            "🤖 LLM Model Selector" if llm_provider != "ollama" else "🤖 Ollama Model",
             options=available_models,
             index=available_models.index(current_model) if current_model in available_models else 0,
             key="chat_model_selector"
@@ -59,8 +61,12 @@ def render_chat_view(db: Session, user_id: str):
             user_repo.update_settings(user_id, preferred_model=selected_model)
 
     with header_cols[2]:
-        status_color = "🟢 Online" if is_ollama_up else "🔴 Offline (Fallback)"
-        st.markdown(f"**Ollama Engine:** `{status_color}`")
+        if llm_provider == "ollama":
+            status_color = "🟢 Online" if is_ollama_up else "🔴 Offline (Fallback)"
+            st.markdown(f"**Ollama Engine:** `{status_color}`")
+        else:
+            api_status = "🟢 API Key Active" if (user_settings and user_settings.api_key) else "🔴 Key Missing (Configure in Settings)"
+            st.markdown(f"**{llm_provider.upper()} Engine:** `{api_status}`")
         
         # Export Popover
         with st.popover("📥 Export Chat", use_container_width=True):

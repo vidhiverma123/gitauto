@@ -274,6 +274,7 @@ flowchart TD
 6. **Launch the Streamlit UI**:
    ```bash
    streamlit run streamlit_app/main.py
+   python3 -m streamlit run streamlit_app/main.py
    ```
    Open your browser to `http://localhost:8501`.
 

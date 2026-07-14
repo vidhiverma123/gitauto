@@ -5,11 +5,17 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Configure engine arguments depending on DB dialect
+# Configure engine arguments depending on DB dialect.
+# In SQLite, connect_args={"check_same_thread": False} was required to allow multiple threads to access the db file.
+# For PostgreSQL, this is not needed and will cause an error if passed, so we use an empty dictionary.
+# if settings.DATABASE_URL.startswith("sqlite"):
+#     connect_args["check_same_thread"] = False
 connect_args = {}
-if settings.DATABASE_URL.startswith("sqlite"):
-    connect_args["check_same_thread"] = False
 
+# Initialize the SQLAlchemy database engine.
+# - settings.DATABASE_URL: connection string pointing to PostgreSQL
+# - pool_pre_ping=True: test connections before executing queries to safely recycle dead connections (highly recommended for Postgres)
+# - echo=False: set to True if you want to print all generated SQL queries to stdout for debugging
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args=connect_args,

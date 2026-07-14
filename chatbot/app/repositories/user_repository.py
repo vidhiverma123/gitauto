@@ -33,7 +33,10 @@ class UserRepository:
             preferred_ollama_model="llama3",
             temperature=0.7,
             max_tokens=1024,
-            theme="dark"
+            theme="dark",
+            llm_provider="ollama",
+            api_key=None,
+            api_base_url=None
         )
         self.db.add(default_settings)
         self.db.commit()
@@ -62,7 +65,10 @@ class UserRepository:
         preferred_model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        theme: Optional[str] = None
+        theme: Optional[str] = None,
+        llm_provider: Optional[str] = None,
+        api_key: Optional[str] = None,
+        api_base_url: Optional[str] = None
     ) -> Setting:
         setting = self.get_settings(user_id)
         if setting:
@@ -74,6 +80,12 @@ class UserRepository:
                 setting.max_tokens = max_tokens
             if theme is not None:
                 setting.theme = theme
+            if llm_provider is not None:
+                setting.llm_provider = llm_provider
+            if api_key is not None:
+                setting.api_key = api_key
+            if api_base_url is not None:
+                setting.api_base_url = api_base_url
             self.db.commit()
             self.db.refresh(setting)
         return setting

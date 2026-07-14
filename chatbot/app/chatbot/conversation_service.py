@@ -2,7 +2,7 @@ import time
 import logging
 from typing import List, Dict, Any, Generator, Optional, Tuple
 from sqlalchemy.orm import Session
-from app.models.user import User
+from app.models.user import User, Setting
 from app.models.conversation import Conversation, Message, Tag
 from app.repositories.conversation_repository import ConversationRepository
 from app.repositories.memory_repository import MemoryRepository
@@ -69,7 +69,13 @@ class ConversationService:
             summary=conversation_summary
         )
 
-        # 3. Stream response from Ollama while tracking timing
+        # Fetch user settings to determine LLM routing (local vs cloud API)
+        user_settings = user.settings
+        llm_provider = user_settings.llm_provider if user_settings else "ollama"
+        api_key = user_settings.api_key if user_settings else None
+        api_base_url = user_settings.api_base_url if user_settings else None
+
+        # 3. Stream response from LLM while tracking timing
         start_time = time.time()
         accumulated_tokens: List[str] = []
 
@@ -77,7 +83,10 @@ class ConversationService:
             messages=messages_payload,
             model=model_used,
             temperature=temperature,
-            max_tokens=max_tokens
+            max_tokens=max_tokens,
+            llm_provider=llm_provider,
+            api_key=api_key,
+            api_base_url=api_base_url
         )
 
         for token in token_generator:
@@ -131,12 +140,21 @@ class ConversationService:
                 "Return ONLY valid JSON in this exact format:\n"
                 "{\"title\": \"Python decorators explanation\", \"tags\": [\"Programming\"]}"
             )
+            # Fetch user settings for LLM API config
+            setting = self.db.query(Setting).filter(Setting.user_id == conversation.user_id).first()
+            llm_provider = setting.llm_provider if setting else "ollama"
+            api_key = setting.api_key if setting else None
+            api_base_url = setting.api_base_url if setting else None
+
             resp = self.ollama_service.generate_sync(
                 prompt=prompt,
                 model=model_used,
                 system_prompt="You are an expert taxonomy and title classifier. Return pure JSON only.",
                 temperature=0.2,
-                max_tokens=128
+                max_tokens=128,
+                llm_provider=llm_provider,
+                api_key=api_key,
+                api_base_url=api_base_url
             )
             if resp:
                 clean_json = resp.strip()

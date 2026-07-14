@@ -2,6 +2,7 @@ from datetime import datetime, timezone, timedelta
 import streamlit as st
 from sqlalchemy.orm import Session
 from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.user_repository import UserRepository
 from app.chatbot.conversation_service import ConversationService
 from app.utils.logger import log_event
 
@@ -13,6 +14,15 @@ def render_sidebar(db: Session, user_id: str) -> str:
     """
     conv_repo = ConversationRepository(db)
     conv_service = ConversationService(db)
+    user_repo = UserRepository(db)
+
+    # Initialize session state variables from DB user settings if not present
+    user_settings = user_repo.get_settings(user_id)
+    if user_settings:
+        if "preferred_model" not in st.session_state:
+            st.session_state.preferred_model = user_settings.preferred_ollama_model
+        if "theme" not in st.session_state:
+            st.session_state.theme = user_settings.theme
 
     with st.sidebar:
         # Personalized Greeting Display

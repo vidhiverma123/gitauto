@@ -11,7 +11,11 @@ from app.repositories.memory_repository import MemoryRepository
 def db_session():
     """
     Creates a fresh in-memory SQLite database session for each test function.
+    
+    NOTE: SQLite is intentionally retained here for unit tests to keep testing fast, 
+    isolated, and free of external PostgreSQL server dependencies.
     """
+    # Create in-memory SQLite engine with check_same_thread disabled for multithreaded test sessions
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(bind=engine)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

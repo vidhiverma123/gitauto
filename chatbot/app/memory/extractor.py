@@ -3,6 +3,7 @@ import re
 import logging
 from typing import List, Dict, Tuple, Optional, Any
 from sqlalchemy.orm import Session
+from app.models.user import Setting
 from app.repositories.memory_repository import MemoryRepository
 from app.utils.logger import log_event
 
@@ -23,6 +24,12 @@ class MemoryExtractor:
         Extract self-facts from the user's input and store them in PostgreSQL user_memory table.
         Returns a list of tuples (fact_key, fact_value) that were newly extracted or updated.
         """
+        # Fetch user settings to determine LLM routing (local vs cloud API)
+        setting = self.db.query(Setting).filter(Setting.user_id == user_id).first()
+        llm_provider = setting.llm_provider if setting else "ollama"
+        api_key = setting.api_key if setting else None
+        api_base_url = setting.api_base_url if setting else None
+
         extracted_facts: List[Tuple[str, str]] = []
 
         # 1. First, try rule-based regex extraction for instant high-confidence matching
@@ -30,9 +37,9 @@ class MemoryExtractor:
         for key, val in regex_facts:
             extracted_facts.append((key, val))
 
-        # 2. Next, if Ollama service is provided, ask LLM for any complex or subtle facts not caught by regex
+        # 2. Next, if LLM service is provided, ask LLM for any complex or subtle facts not caught by regex
         if self.ollama_service and len(message_text.split()) > 3:
-            llm_facts = self._extract_via_llm(message_text, model_used)
+            llm_facts = self._extract_via_llm(message_text, model_used, llm_provider, api_key, api_base_url)
             for key, val in llm_facts:
                 if not any(k.lower() == key.lower() for k, _ in extracted_facts):
                     extracted_facts.append((key, val))
@@ -86,7 +93,14 @@ class MemoryExtractor:
 
         return facts
 
-    def _extract_via_llm(self, text: str, model_used: str) -> List[Tuple[str, str]]:
+    def _extract_via_llm(
+        self,
+        text: str,
+        model_used: str,
+        llm_provider: str = "ollama",
+        api_key: Optional[str] = None,
+        api_base_url: Optional[str] = None
+    ) -> List[Tuple[str, str]]:
         try:
             prompt = (
                 "Analyze the following user statement and extract any personal facts, attributes, preferences, or background details "
@@ -100,7 +114,10 @@ class MemoryExtractor:
                 model=model_used,
                 system_prompt="You are a precise data extraction specialist. Output valid JSON only, without markdown fences or extra commentary.",
                 temperature=0.1,
-                max_tokens=256
+                max_tokens=256,
+                llm_provider=llm_provider,
+                api_key=api_key,
+                api_base_url=api_base_url
             )
             if not response_text:
                 return []
