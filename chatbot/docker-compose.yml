@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chatbot_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: ai_chatbot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_chatbot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: chatbot_ollama
+    restart: always
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  chatbot_ui:
+    build: .
+    container_name: chatbot_ui
+    restart: always
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgrespassword@postgres:5432/ai_chatbot_db
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DEFAULT_OLLAMA_MODEL=llama3
+      - SECRET_KEY=super-secret-jwt-key-docker-change-me
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  chatbot_api:
+    build: .
+    container_name: chatbot_api
+    restart: always
+    ports:
+      - "8000:8000"
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgrespassword@postgres:5432/ai_chatbot_db
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DEFAULT_OLLAMA_MODEL=llama3
+      - SECRET_KEY=super-secret-jwt-key-docker-change-me
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  ollama_data:
