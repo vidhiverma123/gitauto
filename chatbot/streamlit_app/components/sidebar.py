@@ -10,7 +10,7 @@ def render_sidebar(db: Session, user_id: str) -> str:
     """
     Renders the sidebar including user greeting, view navigation, conversation management,
     full-text keyword search, tag filtering, and grouped chat history (Today, Yesterday, Last 7 Days, Older).
-    Returns the currently active view name ('chat', 'profile', 'settings', or 'analytics').
+    Returns the currently active view name ('chat', 'library', 'profile', 'settings', or 'analytics').
     """
     conv_repo = ConversationRepository(db)
     conv_service = ConversationService(db)
@@ -35,20 +35,24 @@ def render_sidebar(db: Session, user_id: str) -> str:
 
         # View Navigation
         active_view = st.session_state.get("active_view", "chat")
-        nav_cols = st.columns(4)
+        nav_cols = st.columns(5)
         with nav_cols[0]:
             if st.button("💬", help="Chat Window", use_container_width=True, type="primary" if active_view == "chat" else "secondary"):
                 st.session_state.active_view = "chat"
                 st.rerun()
         with nav_cols[1]:
+            if st.button("📚", help="Chat Library", use_container_width=True, type="primary" if active_view == "library" else "secondary"):
+                st.session_state.active_view = "library"
+                st.rerun()
+        with nav_cols[2]:
             if st.button("👤", help="User Profile & Memory", use_container_width=True, type="primary" if active_view == "profile" else "secondary"):
                 st.session_state.active_view = "profile"
                 st.rerun()
-        with nav_cols[2]:
+        with nav_cols[3]:
             if st.button("⚙️", help="Settings", use_container_width=True, type="primary" if active_view == "settings" else "secondary"):
                 st.session_state.active_view = "settings"
                 st.rerun()
-        with nav_cols[3]:
+        with nav_cols[4]:
             if st.button("📊", help="Analytics & Audit Logs", use_container_width=True, type="primary" if active_view == "analytics" else "secondary"):
                 st.session_state.active_view = "analytics"
                 st.rerun()

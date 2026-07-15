@@ -218,3 +218,112 @@ class ConversationRepository:
             "most_frequently_used_model": most_used_model,
             "avg_assistant_response_time_ms": avg_response_time_ms
         }
+
+    def get_top_conversations(self, user_id: str, condition: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Retrieve top conversations for a user based on a specific metric condition.
+        Returns a list of dictionaries with conversation fields and calculated metric info.
+        """
+        from sqlalchemy import desc, asc, func
+
+        # Choose the query based on the condition
+        if condition == "most_messages":
+            # Group by Conversation.id and count Message.id
+            query = (
+                self.db.query(
+                    Conversation,
+                    func.count(Message.id).label("metric")
+                )
+                .join(Message, Conversation.id == Message.conversation_id)
+                .filter(Conversation.user_id == user_id)
+                .group_by(Conversation.id)
+                .order_by(desc("metric"))
+                .limit(limit)
+            )
+            metric_label = "Messages"
+            formatter = lambda val: f"{int(val) if val is not None else 0} messages"
+        
+        elif condition == "most_recent":
+            # Just order by updated_at
+            query = (
+                self.db.query(
+                    Conversation,
+                    Conversation.updated_at.label("metric")
+                )
+                .filter(Conversation.user_id == user_id)
+                .order_by(desc(Conversation.updated_at))
+                .limit(limit)
+            )
+            metric_label = "Last Active"
+            formatter = lambda val: val.strftime("%Y-%m-%d %H:%M UTC") if val else "Never"
+            
+        elif condition == "longest_avg_response":
+            # Average assistant response time
+            query = (
+                self.db.query(
+                    Conversation,
+                    func.avg(Message.response_time_ms).label("metric")
+                )
+                .join(Message, Conversation.id == Message.conversation_id)
+                .filter(
+                    Conversation.user_id == user_id,
+                    Message.role == "assistant",
+                    Message.response_time_ms.isnot(None)
+                )
+                .group_by(Conversation.id)
+                .order_by(desc("metric"))
+                .limit(limit)
+            )
+            metric_label = "Avg Response Time"
+            formatter = lambda val: f"{round(val, 1) if val is not None else 0.0} ms"
+
+        elif condition == "shortest_avg_response":
+            # Shortest average assistant response time
+            query = (
+                self.db.query(
+                    Conversation,
+                    func.avg(Message.response_time_ms).label("metric")
+                )
+                .join(Message, Conversation.id == Message.conversation_id)
+                .filter(
+                    Conversation.user_id == user_id,
+                    Message.role == "assistant",
+                    Message.response_time_ms.isnot(None)
+                )
+                .group_by(Conversation.id)
+                .order_by(asc("metric"))
+                .limit(limit)
+            )
+            metric_label = "Avg Response Time"
+            formatter = lambda val: f"{round(val, 1) if val is not None else 0.0} ms"
+
+        elif condition == "longest_content":
+            # Sum of character length of messages
+            query = (
+                self.db.query(
+                    Conversation,
+                    func.sum(func.length(Message.content)).label("metric")
+                )
+                .join(Message, Conversation.id == Message.conversation_id)
+                .filter(Conversation.user_id == user_id)
+                .group_by(Conversation.id)
+                .order_by(desc("metric"))
+                .limit(limit)
+            )
+            metric_label = "Total Characters"
+            formatter = lambda val: f"{int(val) if val is not None else 0} characters"
+        
+        else:
+            # Fallback to most recent
+            return self.get_top_conversations(user_id, "most_recent", limit)
+
+        results = query.all()
+        output = []
+        for conv, metric_val in results:
+            output.append({
+                "conversation": conv,
+                "metric_name": metric_label,
+                "metric_value": formatter(metric_val)
+            })
+        return output
+

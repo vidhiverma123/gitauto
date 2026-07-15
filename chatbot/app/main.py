@@ -22,7 +22,8 @@ from app.schemas.dto import (
     MessageResponse,
     MemoryCreateRequest,
     MemoryResponse,
-    AnalyticsResponse
+    AnalyticsResponse,
+    TopConversationResponse
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -107,6 +108,32 @@ def list_conversations(
             updated_at=c.updated_at,
             is_pinned=c.is_pinned,
             ollama_model_used=c.ollama_model_used,
+            tags=[t.name for t in c.tags]
+        ))
+    return res
+
+@app.get("/api/conversations/top", response_model=List[TopConversationResponse])
+def get_top_conversations(
+    condition: str = "most_recent",
+    limit: int = 5,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    conv_repo = ConversationRepository(db)
+    results = conv_repo.get_top_conversations(current_user.id, condition=condition, limit=limit)
+    res = []
+    for item in results:
+        c = item["conversation"]
+        res.append(TopConversationResponse(
+            id=c.id,
+            user_id=c.user_id,
+            title=c.title,
+            created_at=c.created_at,
+            updated_at=c.updated_at,
+            is_pinned=c.is_pinned,
+            ollama_model_used=c.ollama_model_used,
+            metric_name=item["metric_name"],
+            metric_value=item["metric_value"],
             tags=[t.name for t in c.tags]
         ))
     return res

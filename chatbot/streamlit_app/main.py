@@ -16,7 +16,8 @@ from streamlit_app.components import (
     render_chat_view,
     render_profile_view,
     render_settings_view,
-    render_analytics_view
+    render_analytics_view,
+    render_library_view
 )
 
 st.set_page_config(
@@ -52,6 +53,8 @@ def main():
             # Render active view content
             if active_view == "chat":
                 render_chat_view(db, user_id)
+            elif active_view == "library":
+                render_library_view(db, user_id)
             elif active_view == "profile":
                 render_profile_view(db, user_id)
             elif active_view == "settings":

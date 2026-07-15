@@ -83,3 +83,18 @@ class AnalyticsResponse(BaseModel):
     most_active_day: str
     most_frequently_used_model: str
     avg_assistant_response_time_ms: float
+
+class TopConversationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    user_id: str
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    is_pinned: bool
+    ollama_model_used: str
+    metric_name: str
+    metric_value: str
+    tags: List[str] = []
+

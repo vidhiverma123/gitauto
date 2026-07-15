@@ -62,3 +62,56 @@ def test_prompt_builder(auth_service, conv_repo, memory_repo):
     assert "Location: Bangalore" in payload[0]["content"] or "location: Bangalore" in payload[0]["content"]
     assert payload[-1]["role"] == "user"
     assert payload[-1]["content"] == "Where do I live?"
+
+def test_top_conversations_retrieval(auth_service, conv_repo):
+    user, _ = auth_service.register_user("Charlie Brown", "charlie", "charlie@example.com", "mypassword")
+    
+    # Create 3 conversations
+    c1 = conv_repo.create_conversation(user.id, title="Chat One")
+    c2 = conv_repo.create_conversation(user.id, title="Chat Two")
+    c3 = conv_repo.create_conversation(user.id, title="Chat Three")
+
+    # Add messages to Chat One (4 messages, avg response time: 200ms)
+    conv_repo.add_message(c1.id, user.id, "user", "User message 1")
+    conv_repo.add_message(c1.id, user.id, "assistant", "Assistant reply 1", response_time_ms=100.0)
+    conv_repo.add_message(c1.id, user.id, "user", "User message 2")
+    conv_repo.add_message(c1.id, user.id, "assistant", "Assistant reply 2", response_time_ms=300.0)
+
+    # Add messages to Chat Two (2 messages, avg response time: 500ms)
+    conv_repo.add_message(c2.id, user.id, "user", "Hi")
+    conv_repo.add_message(c2.id, user.id, "assistant", "Hello there", response_time_ms=500.0)
+
+    # Add messages to Chat Three (1 message, no response time)
+    conv_repo.add_message(c3.id, user.id, "user", "Hello")
+
+    # 1. Test condition: most_messages
+    res_msgs = conv_repo.get_top_conversations(user.id, condition="most_messages", limit=3)
+    assert len(res_msgs) == 3
+    assert res_msgs[0]["conversation"].id == c1.id
+    assert res_msgs[1]["conversation"].id == c2.id
+    assert res_msgs[2]["conversation"].id == c3.id
+
+    # 2. Test condition: longest_avg_response
+    res_avg = conv_repo.get_top_conversations(user.id, condition="longest_avg_response", limit=3)
+    assert len(res_avg) == 2
+    assert res_avg[0]["conversation"].id == c2.id
+    assert res_avg[1]["conversation"].id == c1.id
+
+    # 3. Test condition: shortest_avg_response
+    res_short = conv_repo.get_top_conversations(user.id, condition="shortest_avg_response", limit=3)
+    assert len(res_short) == 2
+    assert res_short[0]["conversation"].id == c1.id
+    assert res_short[1]["conversation"].id == c2.id
+
+    # 4. Test condition: longest_content
+    res_content = conv_repo.get_top_conversations(user.id, condition="longest_content", limit=3)
+    assert len(res_content) == 3
+    assert res_content[0]["conversation"].id == c1.id
+    assert res_content[1]["conversation"].id == c2.id
+    assert res_content[2]["conversation"].id == c3.id
+
+    # 5. Test condition: most_recent
+    res_recent = conv_repo.get_top_conversations(user.id, condition="most_recent", limit=3)
+    assert len(res_recent) == 3
+    assert res_recent[0]["conversation"].id == c3.id
+
